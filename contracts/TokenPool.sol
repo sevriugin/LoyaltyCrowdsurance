@@ -22,7 +22,7 @@
 // SOFTWARE.
 // 
 // Author: Sergei Sevriugin
-// Version: 0.0.1
+// Version: 0.0.2 TokenLoyalty
 //  
 
 pragma solidity ^0.4.17;
@@ -85,7 +85,6 @@ contract TokenPool is ITokenPool, Owned() {
     Pool[] pools;           // Pool structure
     ITokenContainer public container;
     uint256 public maxLevel;
-    uint256 constant StateBlocked = uint256(1024);
     /// inset new member in the pool
     /// @param _id NFT token ID to inserr
     /// @param _level Pool level to insert
@@ -192,6 +191,12 @@ contract TokenPool is ITokenPool, Owned() {
         assert(_distributeValue(_id));
         return true;
     }
+    function insertSubPool() connectorOnly public returns(uint256 subPoolId) {
+        subPoolId = container.createNFT(uint256(0), "SubPool", uint256(2), owner);
+        require(subPoolId != uint256(0));
+        // call internal function
+        assert(_insertPool(subPoolId, 1));
+    }
     /// insert token in pool structure
     /// @param _id NFT token ID to insert
     /// @return TRUE if insert is done 
@@ -203,79 +208,6 @@ contract TokenPool is ITokenPool, Owned() {
         assert(_distributeValue(_id));
         return true;
     }
-    /// get collected comission
-    /// @return commission commission value
-    function getComission() public view returns(uint256 commission) {
-        commission = container.getNFTValue(uint256(0));
-    }
-    function _payValue(uint256 _id, uint256 _value) internal returns(uint256[4] distribution) {
-        require(_id != uint256(0));
-        require(_value != uint256(0));
-        distribution[0] = uint256(0);   // Super Pool Value
-        distribution[1] = uint256(0);   // Pool Value
-        distribution[2] = uint256(0);   // SubPool Value
-        distribution[3] = uint256(0);   // Tokens Value (must be 0)
-        // now we can check then the path has all pools
-        uint256 subPoolId = container.tokenIndexToPoolToken(_id);
-        require(subPoolId != uint256(0)); // SubPool
-        uint256 poolId = container.tokenIndexToPoolToken(subPoolId);
-        require(poolId != uint256(0)); // Pool
-        uint256 superPoolId = container.tokenIndexToPoolToken(poolId);
-        require(superPoolId != uint256(0)); // SuperPool
-        if(_value <= container.getNFTValue(subPoolId)) {
-            distribution[2] = _value;
-            container.setNFTValue(subPoolId, container.getNFTValue(subPoolId) - distribution[2]);
-
-            emit PaymentValue(_id, _value, uint8(2));
-        }
-        else if (_value <= container.getNFTValue(poolId) + container.getNFTValue(subPoolId)) {
-            emit ShortOfFunds(_id, subPoolId, _value, uint8(2));
-
-            distribution[2] = container.getNFTValue(subPoolId);
-            distribution[1] = _value - container.getNFTValue(subPoolId);
-
-            container.setNFTValue(subPoolId, container.getNFTValue(subPoolId) - distribution[2]);
-            container.setNFTValue(poolId, container.getNFTValue(poolId) - distribution[1]);
-
-            emit PaymentValue(_id, _value, uint8(1));
-        }
-        else if (_value <= container.getNFTValue(superPoolId) + container.getNFTValue(poolId) + container.getNFTValue(subPoolId)) {
-            emit ShortOfFunds(_id, poolId, _value, uint8(1));
-
-            distribution[2] = container.getNFTValue(subPoolId);
-            distribution[1] = container.getNFTValue(poolId);
-            distribution[0] = _value - container.getNFTValue(subPoolId) - container.getNFTValue(poolId);
-
-            container.setNFTValue(subPoolId, container.getNFTValue(subPoolId) - distribution[2]);
-            container.setNFTValue(poolId, container.getNFTValue(poolId) - distribution[1]);
-            container.setNFTValue(superPoolId, container.getNFTValue(superPoolId) - distribution[0]);
-
-            emit PaymentValue(_id, _value, uint8(0));
-        }
-        else {
-            emit ShortOfFunds(_id, superPoolId, _value, uint8(0));
-            emit SecondTierCall(_id, _value);
-        }
-    }
-    function _checkPayment(uint256 _id, uint256 _value) internal view returns(bool possible) {
-        possible = false;
-        uint256 subPoolId = container.tokenIndexToPoolToken(_id);
-        require(subPoolId != uint256(0)); // SubPool
-        uint256 poolId = container.tokenIndexToPoolToken(subPoolId);
-        require(poolId != uint256(0)); // Pool
-        uint256 superPoolId = container.tokenIndexToPoolToken(poolId);
-        require(superPoolId != uint256(0)); // SuperPool
-        if(_value <= container.getNFTValue(subPoolId)) {
-            possible = true;
-        }
-        else if (_value <= container.getNFTValue(poolId) + container.getNFTValue(subPoolId)) {
-            possible = true;
-        }
-        else if (_value <= container.getNFTValue(superPoolId) + container.getNFTValue(poolId) + container.getNFTValue(subPoolId)) {
-            possible = true;
-        }
-    }
-
     /// TokenPool Connectors helpers
     function connector_owns(address _claimant, uint256 _tokenId) public view connectorOnly returns (bool) {
         return container.owns(_claimant, _tokenId);
@@ -286,11 +218,8 @@ contract TokenPool is ITokenPool, Owned() {
     function connector_setMetadata(uint256 _id, string _metadata) public connectorOnly {
         container.setNFTMetadata(_id, _metadata);
     }
-    function connector_blocked(uint256 _id) public connectorOnly {
-        container.setNFTState(_id, StateBlocked);
-    }
     function connector_createNFT(uint256 _amount, address _member) public connectorOnly returns(uint256) {
-        return container.createNFT(_amount, "Crowdsurance", uint256(0), _member);
+        return container.createNFT(_amount, "Loyalty", uint256(0), _member);
     }
     function connector_addTokenToSubPool(uint256 _id) public connectorOnly returns(bool) {
         return _addTokenToSubPool(_id);
@@ -298,20 +227,14 @@ contract TokenPool is ITokenPool, Owned() {
     function connector_tokensOfOwner(address _owner) view public connectorOnly returns(uint256[] ownerTokens) {
         return container.tokensOfOwner(_owner);
     }
-    function connector_checkPayment(uint256 _id, uint256 _value) view public connectorOnly  returns(bool possible) {
-        return _checkPayment(_id, _value);
+    function getSubPool(uint256 _id) public view returns (uint256) {
+        return container.tokenIndexToPoolToken(_id);
     }
-    function connector_payValue(uint256 _id, uint256 _value) public connectorOnly returns(uint256[4] distribution) {
-        return _payValue(_id, _value);
+    function getState(uint256 _id) public view returns (uint256) {
+        container.getNFTState(_id);
     }
-    function getValue(uint256 _id) public view connectorOnly returns(uint256) {
-        return container.getNFTValue(_id);
-    }
-    function setValue(uint256 _id, uint256 _value) public connectorOnly {
-        container.setNFTValue(_id, _value);
-    }
-    function getPoolSize() public view returns (uint256) {
-        return pools.length;
+    function setState(uint256 _id, uint256 _state) public connectorOnly {
+        container.setNFTState(_id, _state);
     }
     function init() public ownerOnly {
         // Creating templates
@@ -338,7 +261,7 @@ contract TokenPool is ITokenPool, Owned() {
         Pool memory pool = Pool({
             level: uint8(1),
             maxNumber: uint256(10),
-            maxMember: uint256(100),
+            maxMember: uint256(1000),
             number: uint256(1),
             last: uint256(poolId),
             share: uint256(20)
@@ -348,7 +271,7 @@ contract TokenPool is ITokenPool, Owned() {
         Pool memory subPool = Pool({
             level: uint8(2),
             maxNumber: uint256(1000),
-            maxMember: uint256(100),
+            maxMember: uint256(1000),
             number: uint256(1),
             last: uint256(subPoolId),
             share: uint256(50)
