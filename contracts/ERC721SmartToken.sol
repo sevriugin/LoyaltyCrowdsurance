@@ -209,22 +209,22 @@ contract ERC721SmartToken is ERC721, ERC20Controller, Owned() {
     function setNFTState(uint256 _id, uint256 state) public ownerOrConnector {
         nfts[_id].state = state;
     }
-    function getNFTValue(uint256 _id) public view ownerOrConnector returns (uint256) {
+    function getNFTValue(uint256 _id) public view returns (uint256) {
         return nfts[_id].value;
     }
-    function getNFTMetadata(uint256 _id) public view ownerOrConnector returns (string) {
+    function getNFTMetadata(uint256 _id) public view returns (string) {
         return nfts[_id].metadata;
     }
-    function getNFTKind(uint256 _id) public view ownerOrConnector returns (uint256) {
+    function getNFTKind(uint256 _id) public view returns (uint256) {
         return nfts[_id].kind;
     }
-    function getNFTLevel(uint256 _id) public view ownerOrConnector returns (uint256) {
+    function getNFTLevel(uint256 _id) public view returns (uint256) {
         return nfts[_id].level;
     }
-    function getNFTState(uint256 _id) public view ownerOrConnector returns (uint256) {
+    function getNFTState(uint256 _id) public view returns (uint256) {
         return nfts[_id].state;
     }
-    function owns(address _claimant, uint256 _tokenId) public view ownerOrConnector returns (bool) {
+    function owns(address _claimant, uint256 _tokenId) public view returns (bool) {
         return _owns(_claimant, _tokenId);
     }
     /// Constructor

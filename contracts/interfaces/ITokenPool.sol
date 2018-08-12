@@ -10,4 +10,7 @@ contract ITokenPool {
     function getState(uint256 _id) public view returns (uint256);
     function setState(uint256 _id, uint256 _state) public;
     function getSubPool(uint256 _id) public view returns (uint256);
+    function getValue(uint256 _id) public view returns(uint256);
+    function setValue(uint256 _id, uint256 _value) public;
+    function getPoolSize() public view returns (uint256);
 }

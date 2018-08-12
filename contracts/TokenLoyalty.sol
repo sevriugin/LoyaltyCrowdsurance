@@ -42,6 +42,7 @@ contract TokenLoyalty is Owned {
         uint    activated;                          // Sub pool number of activated tokens
         bool    funded;                             // Sub pool has recieved funds to pay claims
         uint    payment;                            // If funded is true then this is payment amount for activated token
+        uint    debit;                              // This amount will be debited from Sub Pool value during the payment
     }
     ITokenPool public pool;
     mapping (uint256 => SubPoolExtension) spextensions;     // Sup pools extension mapping 
@@ -58,9 +59,9 @@ contract TokenLoyalty is Owned {
     /// activation event
     event Activated(uint subPoolId, uint tokenId, uint timeStamp, uint closure);
     /// funded event
-    event Funded(uint subPoolId, uint payment, uint timeStamp, uint closure);
+    event Funded(uint subPoolId, uint payment, uint debit, uint timeStamp, uint closure);
     /// payment event
-    event Paid(uint subPoolId, uint tokenId, uint payment, uint timeStamp, uint closure);
+    event Paid(uint subPoolId, uint tokenId, uint value, uint debit, uint payment, uint timeStamp, uint closure);
 
     function _createExtension(uint _subPoolId) internal {
         spextensions[_subPoolId] = SubPoolExtension ({
@@ -69,13 +70,14 @@ contract TokenLoyalty is Owned {
             members: uint(0),
             activated: uint(0),
             funded: false,
-            payment: uint(0)
+            payment: uint(0),
+            debit: uint(0)
         });
         // emit event
         emit SPExtension(_subPoolId, spextensions[_subPoolId].timeStamp, spextensions[_subPoolId].closure);
     }
     /// create loyalty token
-    function create(address _member, string _clientId, bool _claim) ownerOnly public {
+    function create(address _member, string _clientId) ownerOnly public {
         require(_member != address(0));
         if(spextensions[subPoolId].timeStamp == uint(0)) {
             // first sub pool and first token need to create sub pool extension
@@ -97,7 +99,7 @@ contract TokenLoyalty is Owned {
             }
         }
         // now we have sub pool open (old one or new) and can insert token
-        uint tokenId = pool.connector_createNFT(uint256(5), _member);
+        uint tokenId = pool.connector_createNFT(uint256(500), _member);
         if(tokenId == uint(0)) {
             emit Error("can't create new token");
             return;
@@ -105,10 +107,6 @@ contract TokenLoyalty is Owned {
         // token is created
         // set metadata to _clientId
         pool.connector_setMetadata(tokenId, _clientId);
-        // if _claim is true set status
-        if(_claim) {
-            pool.setState(tokenId, StateClaim);
-        }
         // now we can insert it to sub pool
         pool.connector_addTokenToSubPool(tokenId);
         // it's possible that sub pool can full and new sub pool will be created need to check this 
@@ -120,11 +118,8 @@ contract TokenLoyalty is Owned {
                 subPoolId = newSubPoolId;
             }
         }
-        emit Created(_member, _clientId, _claim, tokenId, subPoolId);
+        emit Created(_member, _clientId, false, tokenId, subPoolId);
         spextensions[subPoolId].members = spextensions[subPoolId].members + 1;
-        if(_claim) {
-            spextensions[subPoolId].activated = spextensions[subPoolId].activated + 1;
-        }
         emit Added(
             subPoolId,
             tokenId, 
@@ -145,43 +140,112 @@ contract TokenLoyalty is Owned {
 
         emit Activated(_subPoolId, _id, spextensions[_subPoolId].timeStamp, spextensions[_subPoolId].closure);
     }
-    function fund(uint _subPoolId, uint _payment) ownerOnly public payable {
+    function fund(uint _subPoolId, uint _payment, uint _debit) ownerOnly public payable {
         require(_subPoolId != uint256(0));
         uint256 amount = msg.value;
+        uint256 value = pool.getValue(_subPoolId);
         require(amount >= spextensions[_subPoolId].activated * _payment);
+        require(value >= spextensions[_subPoolId].activated * _debit);
         spextensions[_subPoolId].funded = true;
         spextensions[_subPoolId].payment = _payment;
+        spextensions[_subPoolId].debit = _debit;
 
-        emit Funded(_subPoolId, _payment, spextensions[_subPoolId].timeStamp, spextensions[_subPoolId].closure);
+        emit Funded(_subPoolId, _payment, _debit, spextensions[_subPoolId].timeStamp, spextensions[_subPoolId].closure);
     }
     function payment(uint256 _id) public {
         require(_id != uint256(0));
         require(pool.connector_owns(msg.sender, _id));
         require(pool.getState(_id) == StateClaim);
         uint _subPoolId = pool.getSubPool(_id);
+        uint value = pool.getValue(_subPoolId);
         require(_subPoolId != uint256(0));
         require(spextensions[_subPoolId].timeStamp != uint256(0));
         require(spextensions[_subPoolId].funded);
+        require(address(this).balance >= spextensions[_subPoolId].payment);
+        require(value >= spextensions[_subPoolId].debit);
         msg.sender.transfer(spextensions[_subPoolId].payment);
+        value = value - spextensions[_subPoolId].debit;
+        pool.setValue(_subPoolId, value);
         pool.setState(_id, StatePaid);
 
-        emit Paid(_subPoolId, _id, spextensions[_subPoolId].payment, spextensions[_subPoolId].timeStamp, spextensions[_subPoolId].closure);
+        emit Paid(
+            _subPoolId,
+            _id,
+            value,
+            spextensions[_subPoolId].debit,
+            spextensions[_subPoolId].payment, 
+            spextensions[_subPoolId].timeStamp, 
+            spextensions[_subPoolId].closure
+        );
     }
-    function getSubPoolExtension(uint256 _subPoolId) public view returns(uint, uint, uint, uint, bool, uint) {
+    function getSubPoolExtension(uint256 _subPoolId) public view returns(uint, uint, uint, uint, uint, uint, uint) {
         return(
             spextensions[_subPoolId].timeStamp, 
             spextensions[_subPoolId].closure, 
             spextensions[_subPoolId].members, 
             spextensions[_subPoolId].activated, 
-            spextensions[_subPoolId].funded, 
-            spextensions[_subPoolId].payment
+            spextensions[_subPoolId].debit, 
+            spextensions[_subPoolId].payment,
+            pool.getValue(_subPoolId)
         );
     }
-    function getCurrentSubPoolExtension() public view returns(uint, uint, uint, uint, bool, uint) {
+    function getCurrentSubPoolExtension() public view returns(
+        uint created, 
+        uint closed, 
+        uint numberOfMembers, 
+        uint numberOfActivated, 
+        uint debitValue,
+        uint paymentAmount,
+        uint value
+    ) {
         return getSubPoolExtension(subPoolId);
+    }
+    function getBizProcessId() view public returns(address contractOwner, uint8 bizProcessId) {
+        contractOwner = owner;
+        bizProcessId = 21;
+        // wait fot init
+        if (pool.getPoolSize() == 0) {
+            bizProcessId = 100; 
+            return;
+        }
+    }
+    function getBalance() view public returns(uint) {
+        return address(this).balance;
+    }
+    function checkPayment(uint _id) public view returns(uint) {
+        uint result = 0;
+        uint _subPoolId = pool.getSubPool(_id);
+        uint value = pool.getValue(_subPoolId);
+        
+        if(_id != uint256(0)) {
+            result = result + 1;
+        }
+        if(pool.connector_owns(msg.sender, _id)) {
+            result = result + 10;
+        }
+        if(pool.getState(_id) == StateClaim) {
+            result = result + 100;
+        }
+        if(_subPoolId != uint256(0)) {
+            result = result + 1000;
+        }
+        if(spextensions[_subPoolId].timeStamp != uint256(0)) {
+            result = result + 10000;
+        }
+        if(spextensions[_subPoolId].funded) {
+            result = result + 100000;
+        }
+        if(address(this).balance >= spextensions[_subPoolId].payment) {
+            result = result + 1000000;
+        }
+        if(value >= spextensions[_subPoolId].debit) {
+            result = result + 10000000;
+        }
+        return result;
     }
     constructor(address _pool) public {
         subPoolId = 3;
+        _createExtension(subPoolId);
         pool = ITokenPool(_pool);
     }
     function() public payable { }                           //  fallback function to get Ether on contract account

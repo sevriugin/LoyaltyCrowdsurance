@@ -1,6 +1,5 @@
-import LCSToken from './../build/contracts/LCSToken.json'
+import TokenLoyalty from './../build/contracts/TokenLoyalty.json'
 import ERC20Adapter from './../build/contracts/ERC20Adapter.json'
-import RSTToken from './../build/contracts/RSTToken.json'
 import TokenContainer from './../build/contracts/TokenContainer.json'
 import TokenPool from './../build/contracts/TokenPool.json'
 
@@ -13,15 +12,13 @@ const drizzleOptions = {
     }
   },
   contracts: [
-    RSTToken,
     ERC20Adapter,
-    LCSToken,
+    TokenLoyalty,
     TokenContainer,
     TokenPool
   ],
   events: {
-    RSTToken: ['Approval','Transfer'],
-    LCSToken: ['Apply','Join', 'Scoring', 'Activate', 'Claim', 'Vote', 'Payment', 'FSSF'],
+    TokenLoyalty: ['Created','SPExtension', 'Error', 'Added', 'Activated', 'Funded', 'Paid'],
     TokenContainer: ['AddToken', 'RemoveToken', 'Transfer', 'AddValue', 'RemoveValue', 'SetLevel', 'IncreaseLevel','SenderUpdate'],
     TokenPool: ['InsertPool', 'DistributeValue','SecondTierCall', 'ShortOfFunds', 'PaymentValue','SenderUpdate']
   },

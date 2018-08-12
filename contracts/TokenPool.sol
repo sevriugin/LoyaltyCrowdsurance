@@ -160,13 +160,10 @@ contract TokenPool is ITokenPool, Owned() {
         // calculate values to distribute based of pool structure shares
         uint256 value = container.getNFTValue(_id);
         uint256 subPoolValue = value * pools[2].share / 100;
-        require(subPoolValue != uint256(0));
         uint256 poolValue = value * pools[1].share / 100;
-        require(poolValue != uint256(0));
         uint256 superPoolValue = value * pools[0].share / 100;
-        require(superPoolValue != uint256(0));
         uint256 commission = value - subPoolValue - poolValue - superPoolValue;
-        require(commission != uint256(0));
+        
         // ready to distribute
         container.setNFTValue(subPoolId, container.getNFTValue(subPoolId) + subPoolValue);
         container.setNFTValue(poolId, container.getNFTValue(poolId) + poolValue);
@@ -231,10 +228,19 @@ contract TokenPool is ITokenPool, Owned() {
         return container.tokenIndexToPoolToken(_id);
     }
     function getState(uint256 _id) public view returns (uint256) {
-        container.getNFTState(_id);
+        return container.getNFTState(_id);
     }
     function setState(uint256 _id, uint256 _state) public connectorOnly {
         container.setNFTState(_id, _state);
+    }
+    function getPoolSize() public view returns (uint256) {
+        return pools.length;
+    }
+    function getValue(uint256 _id) public view returns(uint256) {
+        return container.getNFTValue(_id);
+    }
+    function setValue(uint256 _id, uint256 _value) public connectorOnly {
+        container.setNFTValue(_id, _value);
     }
     function init() public ownerOnly {
         // Creating templates
@@ -254,7 +260,7 @@ contract TokenPool is ITokenPool, Owned() {
             maxMember: uint256(10),
             number: uint256(1),
             last: uint256(superPoolId),
-            share: uint256(10)
+            share: uint256(0)
         });
         pools.push(superPool);
         // Pool configuration 
@@ -264,7 +270,7 @@ contract TokenPool is ITokenPool, Owned() {
             maxMember: uint256(1000),
             number: uint256(1),
             last: uint256(poolId),
-            share: uint256(20)
+            share: uint256(0)
         });
         pools.push(pool);
         // SubPool configuration 
@@ -274,7 +280,7 @@ contract TokenPool is ITokenPool, Owned() {
             maxMember: uint256(1000),
             number: uint256(1),
             last: uint256(subPoolId),
-            share: uint256(50)
+            share: uint256(100)
         });
         pools.push(subPool);
         // set comission to 0

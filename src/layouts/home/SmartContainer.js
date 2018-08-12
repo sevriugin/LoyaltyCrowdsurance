@@ -14,12 +14,12 @@ class SmartContainer extends Component {
 
     this.contracts = context.drizzle.contracts;
 
-    const abi = this.contracts['LCSToken'].abi;
+    const abi = this.contracts['TokenLoyalty'].abi;
 
     // Fetch initial value from chain and return cache key for reactive updates.
     this.account = this.props.accounts[this.props.accountIndex];
 
-    this.dataKey = this.contracts['LCSToken'].methods['getBizProcessId'].cacheCall(...[]);
+    this.dataKey = this.contracts['TokenLoyalty'].methods['getBizProcessId'].cacheCall(...[]);
 
     // Iterate over abi for correct function.
     for (var i = 0; i < abi.length; i++) {
@@ -52,20 +52,20 @@ class SmartContainer extends Component {
 
   render() {
     // No accounts found.
-    if(Object.keys(this.props.accounts).length === 0 || !this.props.contracts['LCSToken'].initialized) {
+    if(Object.keys(this.props.accounts).length === 0 || !this.props.contracts['TokenLoyalty'].initialized) {
       return (
         <span>Initializing...</span>
       )
     }
 
     // If the cache key we received earlier isn't in the store yet; the initial value is still being fetched.
-    if(!(this.dataKey in this.props.contracts['LCSToken']['getBizProcessId'])) {
+    if(!(this.dataKey in this.props.contracts['TokenLoyalty']['getBizProcessId'])) {
       return (
         <span>Fetching...</span>
       )
     }
 
-    var displayData = this.props.contracts['LCSToken']['getBizProcessId'][this.dataKey].value
+    var displayData = this.props.contracts['TokenLoyalty']['getBizProcessId'][this.dataKey].value
     var contractOwner = displayData['contractOwner'];
     var bizProcessId = displayData['bizProcessId'];
 
