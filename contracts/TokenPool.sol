@@ -192,7 +192,9 @@ contract TokenPool is ITokenPool, Owned() {
         subPoolId = container.createNFT(uint256(0), "SubPool", uint256(2), owner);
         require(subPoolId != uint256(0));
         // call internal function
-        assert(_insertPool(subPoolId, 1));
+        assert(_insertPool(subPoolId, uint8(1)));
+        pools[uint(2)].last = subPoolId; // new Sub pool is last one
+        pools[uint(2)].number++;
     }
     /// insert token in pool structure
     /// @param _id NFT token ID to insert

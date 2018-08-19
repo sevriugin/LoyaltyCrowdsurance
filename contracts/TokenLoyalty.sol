@@ -60,6 +60,8 @@ contract TokenLoyalty is Owned {
     event Activated(uint subPoolId, uint tokenId, uint timeStamp, uint closure);
     /// funded event
     event Funded(uint subPoolId, uint payment, uint debit, uint timeStamp, uint closure);
+    /// Closed event
+    event Closed(uint subPoolId, uint timeStamp, uint closure);
     /// payment event
     event Paid(uint subPoolId, uint tokenId, uint value, uint debit, uint payment, uint timeStamp, uint closure);
 
@@ -150,7 +152,20 @@ contract TokenLoyalty is Owned {
         spextensions[_subPoolId].payment = _payment;
         spextensions[_subPoolId].debit = _debit;
 
+        if(spextensions[_subPoolId].closure >= now) {
+            spextensions[_subPoolId].closure = now;
+        }
+
         emit Funded(_subPoolId, _payment, _debit, spextensions[_subPoolId].timeStamp, spextensions[_subPoolId].closure);
+    }
+    function close(uint _subPoolId) ownerOnly public {
+        require(_subPoolId != uint256(0));
+
+        if(spextensions[_subPoolId].closure >= now) {
+            spextensions[_subPoolId].closure = now;
+        }
+
+        emit Closed(_subPoolId, spextensions[_subPoolId].timeStamp, spextensions[_subPoolId].closure);
     }
     function payment(uint256 _id) public {
         require(_id != uint256(0));
@@ -216,7 +231,7 @@ contract TokenLoyalty is Owned {
         uint result = 0;
         uint _subPoolId = pool.getSubPool(_id);
         uint value = pool.getValue(_subPoolId);
-        
+
         if(_id != uint256(0)) {
             result = result + 1;
         }

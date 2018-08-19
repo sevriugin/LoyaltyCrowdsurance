@@ -62,12 +62,12 @@ class Home extends Component {
         <h3>Loyalty Total Supply</h3>
         <p><ContractData contract="TokenContainer" method="totalSupply" /> </p>
         <h3>Current Token State [ Claim : 1023, Paid : 1022 ]</h3>
-        <p><ContractData contract="TokenPool" method="getState" methodArgs={[4]} /> </p>
-        <p><ContractData contract="TokenContainer" method="getNFTState" methodArgs={[4]} /> </p>
+        <p><ContractData contract="TokenPool" method="getState" methodArgs={[6]} /> </p>
+        <p><ContractData contract="TokenContainer" method="getNFTState" methodArgs={[6]} /> </p>
         <h3>Current Token Sub Pool ID</h3>
-        <p><ContractData contract="TokenPool" method="getSubPool" methodArgs={[4]} /> </p>
+        <p><ContractData contract="TokenPool" method="getSubPool" methodArgs={[6]} /> </p>
         <h3>Current Token Payment Status</h3>
-        <p><ContractData contract="TokenLoyalty" method="checkPayment" methodArgs={[4]} /> </p>
+        <p><ContractData contract="TokenLoyalty" method="checkPayment" methodArgs={[6]} /> </p>
         <h3>Current Sub Pool ID</h3>
         <p><ContractData contract="TokenLoyalty" method="subPoolId" /> </p>
         <h3>Loyalty Token Owner</h3>
@@ -90,7 +90,7 @@ class Home extends Component {
           <div className="pure-u-1-1 header">
             <img src={rega} alt="drizzle-logo" />
             <h1>REGA Loyalty Token</h1>
-            <h3>W.A.L.T. Smart Contracts &nbsp;<small>v 0.0.1</small></h3>
+            <h3>W.A.L.T. Smart Contracts &nbsp;<small>v 0.0.2</small></h3>
 
             <br/><br/>
           </div>
